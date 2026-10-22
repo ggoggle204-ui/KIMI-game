@@ -138,8 +138,13 @@ jobs:
           make install
           cd ..
 
-          # 2. Overwrite Makefile.ps3 using printf (avoids YAML errors and guarantees Tabs)
-          printf 'TARGET\t\t:=\tskycircuit\nTYPE\t\t:=\tEXECUTABLE\nSOURCE\t\t:=\tsrc src/ps3\nINCLUDES\t:=\tsrc\nLIBS\t\t:=\t-ltiny3d -lps3soundlib -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++\n\ninclude $$(PSL1GHT)/Makefile.base\n' > Makefile.ps3
+          # Ensure the rules are in the root of PS3DEV
+          cp $PS3DEV/psl1ght/Makefile.base $PS3DEV/Makefile.base || true
+          cp $PS3DEV/psl1ght/ppu_rules $PS3DEV/ppu_rules || true
+          cp $PS3DEV/psl1ght/spu_rules $PS3DEV/spu_rules || true
+
+          # 2. Overwrite Makefile.ps3 using printf (fixed the $ sign)
+          printf 'TARGET\t\t:=\tskycircuit\nTYPE\t\t:=\tEXECUTABLE\nSOURCE\t\t:=\tsrc src/ps3\nINCLUDES\t:=\tsrc\nLIBS\t\t:=\t-ltiny3d -lps3soundlib -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++\n\ninclude $(PSL1GHT)/Makefile.base\n' > Makefile.ps3
 
           # 3. Compile
           make -f Makefile.ps3
