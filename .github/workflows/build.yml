@@ -12,17 +12,20 @@ jobs:
       - name: Compile inside PS3Dev Docker
         run: |
           docker run --rm -v ${{ github.workspace }}:/src einsteinx2/ps3dev-tiny3d bash -c "
-            # 1. Install Estwald's libaudio dependency
+            # 1. Set up PSL1GHT environment variables inside the container
+            export PS3DEV=/usr/local/ps3dev
+            export PSL1GHT=\$PS3DEV
+            export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin
+
+            # 2. Install the correct sound library (wargio/ps3soundlib)
             cd /tmp
-            git clone https://github.com/estwald/libaudio.git
-            cd libaudio
+            git clone https://github.com/wargio/ps3soundlib.git
+            cd ps3soundlib
             make
             make install
             
-            # 2. Go back to your game's source code
+            # 3. Go back to your game's source code and compile
             cd /src
-            
-            # 3. Compile the game
             make -f Makefile.ps3
           "
 
@@ -30,5 +33,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PS3-Game-Build
-          # This looks for the compiled .self file in your root directory
           path: skycircuit.self
