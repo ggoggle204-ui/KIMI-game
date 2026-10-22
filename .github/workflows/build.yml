@@ -127,19 +127,28 @@ jobs:
           cp -r include/* "$PS3DEV/portlibs/ppu/include/" || true
           echo "ps3soundlib installed manually."
 
-      - name: Compile Game (Force Correct Rules & Tabs)
+      - name: Compile Game
         run: |
           export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           
-          # 1. Download the CORRECT base rules file directly from PSL1GHT
+          # 1. Force install PSL1GHT to generate Makefile.base correctly
           git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
-          cp psl1ght-src/base_rules $PS3DEV/Makefile.base
-          cp psl1ght-src/ppu_rules $PS3DEV/ppu_rules
-          cp psl1ght-src/spu_rules $PS3DEV/spu_rules
-          
-          # 2. Force Tabs in the Makefile to fix mobile editor spaces
-          sed -i 's/^[ ]*/\t/' Makefile.ps3
-          
+          cd psl1ght-src
+          make install-ctrl
+          make install
+          cd ..
+
+          # 2. Overwrite Makefile.ps3 to guarantee perfect tabs and rules
+          cat << 'EOF' > Makefile.ps3
+TARGET		:=	skycircuit
+TYPE		:=	EXECUTABLE
+SOURCE		:=	src src/ps3
+INCLUDES	:=	src
+LIBS		:=	-ltiny3d -lps3soundlib -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++
+
+include $(PSL1GHT)/Makefile.base
+EOF
+
           # 3. Compile
           make -f Makefile.ps3
 
