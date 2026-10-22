@@ -106,14 +106,15 @@ jobs:
           key: ps3dev-full-v4
 
       # ---------------------------------------------------------
-      # NEW FAST FIX: Fetch the missing build rules directly
+      # FIXED: Clone the repo instead of using curl to avoid 404 HTML
       # ---------------------------------------------------------
       - name: Ensure PSL1GHT Build Rules Exist
         run: |
-          curl -sL https://raw.githubusercontent.com/ps3dev/PSL1GHT/master/Makefile.base -o $PS3DEV/Makefile.base
-          curl -sL https://raw.githubusercontent.com/ps3dev/PSL1GHT/master/ppu_rules -o $PS3DEV/ppu_rules
-          curl -sL https://raw.githubusercontent.com/ps3dev/PSL1GHT/master/spu_rules -o $PS3DEV/spu_rules
-          echo "Build rules fetched successfully."
+          git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
+          cp psl1ght-src/Makefile.base $PS3DEV/Makefile.base
+          cp psl1ght-src/ppu_rules $PS3DEV/ppu_rules
+          cp psl1ght-src/spu_rules $PS3DEV/spu_rules
+          echo "Build rules cloned and copied successfully."
 
       - name: Build and Install tiny3d (Manual Patch)
         run: |
