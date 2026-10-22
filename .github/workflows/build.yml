@@ -12,19 +12,19 @@ jobs:
       - name: Compile inside PS3Dev Docker
         run: |
           docker run --rm -v ${{ github.workspace }}:/src einsteinx2/ps3dev-tiny3d bash -c "
-            # 1. Set up PSL1GHT environment variables inside the container
+            # 1. Set up the correct PSL1GHT paths inside the container
             export PS3DEV=/usr/local/ps3dev
-            export PSL1GHT=\$PS3DEV
+            export PSL1GHT=\$PS3DEV/psl1ght
             export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin
 
-            # 2. Install the correct sound library (wargio/ps3soundlib)
+            # 2. Install ps3soundlib (now with the correct PSL1GHT path)
             cd /tmp
             git clone https://github.com/wargio/ps3soundlib.git
             cd ps3soundlib
             make
             make install
-            
-            # 3. Go back to your game's source code and compile
+
+            # 3. Compile the game
             cd /src
             make -f Makefile.ps3
           "
