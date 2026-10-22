@@ -14,6 +14,17 @@ jobs:
           wget -q https://github.com/bucanero/ps3toolchain/releases/download/ubuntu-latest-fad3b5fb/ps3dev-ubuntu-latest-2020-08-31.tar.gz
           tar -xzf ps3dev-ubuntu-latest-2020-08-31.tar.gz
 
+      - name: Patch missing ppu_rules
+        run: |
+          # Find ppu_rules anywhere in the extracted folder and copy it to the expected location
+          PPU_RULES=$(find ${{ github.workspace }}/ps3dev -name "ppu_rules" | head -n 1)
+          if [ -n "$PPU_RULES" ]; then
+            cp "$PPU_RULES" ${{ github.workspace }}/ps3dev/psl1ght/ppu_rules
+            echo "Successfully patched ppu_rules!"
+          else
+            echo "Could not find ppu_rules at all!"
+          fi
+
       - name: Setup Environment Variables
         run: |
           echo "${{ github.workspace }}/ps3dev/bin" >> $GITHUB_PATH
