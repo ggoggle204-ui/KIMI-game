@@ -1,0 +1,34 @@
+name: Build PS3 Game
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Compile inside PS3Dev Docker
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src einsteinx2/ps3dev-tiny3d bash -c "
+            # 1. Install Estwald's libaudio dependency
+            cd /tmp
+            git clone https://github.com/estwald/libaudio.git
+            cd libaudio
+            make
+            make install
+            
+            # 2. Go back to your game's source code
+            cd /src
+            
+            # 3. Compile the game
+            make -f Makefile.ps3
+          "
+
+      - name: Upload Compiled Game Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PS3-Game-Build
+          # This looks for the compiled .self file in your root directory
+          path: skycircuit.self
