@@ -9,33 +9,36 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Compile inside PS3Dev Docker
+      - name: Download and Extract PS3 Toolchain
         run: |
-          docker run --rm -v ${{ github.workspace }}:/src einsteinx2/ps3dev-tiny3d bash -c "
-            # 1. Dynamically find the correct PSL1GHT installation path
-            MB_PATH=\$(find / -name Makefile.base 2>/dev/null | head -n 1)
-            if [ -n \"\$MB_PATH\" ]; then
-                export PSL1GHT=\$(dirname \"\$MB_PATH\")
-                echo \"Found PSL1GHT environment at: \$PSL1GHT\"
-            else
-                echo \"ERROR: Could not find Makefile.base anywhere in the container!\"
-                exit 1
-            fi
+          wget -q https://github.com/bucanero/ps3toolchain/releases/download/ubuntu-latest-fad3b5fb/ps3dev-ubuntu-latest-2020-08-31.tar.gz
+          tar -xzf ps3dev-ubuntu-latest-2020-08-31.tar.gz
 
-            export PS3DEV=/usr/local/ps3dev
-            export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin
+      - name: Setup Environment Variables
+        run: |
+          echo "${{ github.workspace }}/ps3dev/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/ps3dev/ppu/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/ps3dev/spu/bin" >> $GITHUB_PATH
+          echo "PS3DEV=${{ github.workspace }}/ps3dev" >> $GITHUB_ENV
+          echo "PSL1GHT=${{ github.workspace }}/ps3dev/psl1ght" >> $GITHUB_ENV
 
-            # 2. Install ps3soundlib (now with the perfectly correct path)
-            cd /tmp
-            git clone https://github.com/wargio/ps3soundlib.git
-            cd ps3soundlib
-            make
-            make install
+      - name: Build and Install tiny3d (Graphics)
+        run: |
+          git clone https://github.com/wargio/tiny3d.git
+          cd tiny3d
+          make
+          make install
 
-            # 3. Compile the game
-            cd /src
-            make -f Makefile.ps3
-          "
+      - name: Build and Install ps3soundlib (Audio)
+        run: |
+          git clone https://github.com/wargio/ps3soundlib.git
+          cd ps3soundlib
+          make
+          make install
+
+      - name: Build the Game
+        run: |
+          make -f Makefile.ps3
 
       - name: Upload Compiled Game Artifact
         uses: actions/upload-artifact@v4
