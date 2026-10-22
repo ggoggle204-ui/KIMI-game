@@ -106,15 +106,24 @@ jobs:
           key: ps3dev-full-v4
 
       # ---------------------------------------------------------
-      # FIXED: Clone the repo instead of using curl to avoid 404 HTML
+      # FIXED: Build and install PSL1GHT to generate Makefile.base
       # ---------------------------------------------------------
-      - name: Ensure PSL1GHT Build Rules Exist
+      - name: Build and Install PSL1GHT SDK
         run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
-          cp psl1ght-src/Makefile.base $PS3DEV/Makefile.base
-          cp psl1ght-src/ppu_rules $PS3DEV/ppu_rules
-          cp psl1ght-src/spu_rules $PS3DEV/spu_rules
-          echo "Build rules cloned and copied successfully."
+          cd psl1ght-src
+          make install-ctrl
+          make install
+          
+          # Verify and fix Makefile.base if the install step didn't place it
+          if [ ! -f "$PS3DEV/Makefile.base" ]; then
+            cp base_rules "$PS3DEV/Makefile.base" || true
+          fi
+          # Also ensure ppu_rules and spu_rules are present
+          cp ppu_rules "$PS3DEV/" || true
+          cp spu_rules "$PS3DEV/" || true
+          echo "PSL1GHT build rules installed successfully."
 
       - name: Build and Install tiny3d (Manual Patch)
         run: |
