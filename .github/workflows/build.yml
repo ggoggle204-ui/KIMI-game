@@ -14,24 +14,35 @@ jobs:
           wget -q https://github.com/bucanero/ps3toolchain/releases/download/ubuntu-latest-fad3b5fb/ps3dev-ubuntu-latest-2020-08-31.tar.gz
           tar -xzf ps3dev-ubuntu-latest-2020-08-31.tar.gz
 
-      - name: Patch missing ppu_rules
+      - name: Patch missing ppu_rules and Set Environment
         run: |
-          # Find ppu_rules anywhere in the extracted folder and copy it to the expected location
+          # Find Makefile.base to figure out where the SDK actually is
+          MB_PATH=$(find ${{ github.workspace }}/ps3dev -name "Makefile.base" | head -n 1)
+          if [ -z "$MB_PATH" ]; then
+            echo "ERROR: Could not find Makefile.base anywhere!"
+            exit 1
+          fi
+          
+          PSL1GHT_DIR=$(dirname "$MB_PATH")
+          echo "PSL1GHT=$PSL1GHT_DIR" >> $GITHUB_ENV
+          echo "PS3DEV=${{ github.workspace }}/ps3dev" >> $GITHUB_ENV
+          echo "Found PSL1GHT at: $PSL1GHT_DIR"
+
+          # Find ppu_rules and copy it into the PSL1GHT folder
           PPU_RULES=$(find ${{ github.workspace }}/ps3dev -name "ppu_rules" | head -n 1)
           if [ -n "$PPU_RULES" ]; then
-            cp "$PPU_RULES" ${{ github.workspace }}/ps3dev/psl1ght/ppu_rules
+            cp "$PPU_RULES" "$PSL1GHT_DIR/ppu_rules"
             echo "Successfully patched ppu_rules!"
           else
-            echo "Could not find ppu_rules at all!"
+            echo "ERROR: Could not find ppu_rules!"
+            exit 1
           fi
 
-      - name: Setup Environment Variables
+      - name: Setup PATH
         run: |
           echo "${{ github.workspace }}/ps3dev/bin" >> $GITHUB_PATH
           echo "${{ github.workspace }}/ps3dev/ppu/bin" >> $GITHUB_PATH
           echo "${{ github.workspace }}/ps3dev/spu/bin" >> $GITHUB_PATH
-          echo "PS3DEV=${{ github.workspace }}/ps3dev" >> $GITHUB_ENV
-          echo "PSL1GHT=${{ github.workspace }}/ps3dev/psl1ght" >> $GITHUB_ENV
 
       - name: Build and Install tiny3d (Graphics)
         run: |
