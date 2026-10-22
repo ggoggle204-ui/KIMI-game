@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ps3dev
-          key: ps3dev-full-v3
+          key: ps3dev-full-v4
 
       - name: Restore core toolchain cache
         id: cache_core
@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ps3dev
-          key: ps3dev-core-v3
+          key: ps3dev-core-v4
 
       - name: Get ps3toolchain
         if: steps.cache_full.outputs.cache-hit != 'true'
@@ -69,7 +69,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ps3dev
-          key: ps3dev-core-v3
+          key: ps3dev-core-v4
 
       - name: Stage B - build ps3libraries (zlib, freetype)
         if: steps.cache_full.outputs.cache-hit != 'true'
@@ -98,24 +98,30 @@ jobs:
           done
           if [ "$missing" = 1 ]; then echo "A needed library was not built:"; tail -n 100 "$LOG"; exit 1; fi
 
-      - name: Build PSL1GHT SDK (Ensures Makefile.base and ppu_rules exist)
-        if: steps.cache_full.outputs.cache-hit != 'true'
+      - name: Build PSL1GHT SDK (Forces files into correct location)
         run: |
           set -ex
           export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
-          if [ ! -x "$PS3DEV/bin/sprxlinker" ]; then
-            git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
-            cd psl1ght-src
-            make install-ctrl
-            make install
-          fi
+          git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
+          cd psl1ght-src
+          make install-ctrl
+          make install
+          
+          # Force copy the missing files to every possible location
+          cp Makefile.base "$PS3DEV/" || true
+          cp ppu_rules "$PS3DEV/" || true
+          cp spu_rules "$PS3DEV/" || true
+          mkdir -p "$PS3DEV/psl1ght"
+          cp Makefile.base "$PS3DEV/psl1ght/" || true
+          cp ppu_rules "$PS3DEV/psl1ght/" || true
+          cp spu_rules "$PS3DEV/psl1ght/" || true
 
       - name: Save full toolchain cache
         if: steps.cache_full.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ps3dev
-          key: ps3dev-full-v3
+          key: ps3dev-full-v4
 
       - name: Build and Install tiny3d (Manual Patch)
         run: |
