@@ -105,13 +105,17 @@ jobs:
           path: ps3dev
           key: ps3dev-full-v2
 
-      - name: Build and Install tiny3d
+      - name: Build and Install tiny3d (Manual Patch)
         run: |
           export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           git clone https://github.com/wargio/tiny3d.git
           cd tiny3d
           make
-          make install
+          # Since tiny3d lacks an install target, we copy the compiled library and headers manually
+          mkdir -p "$PS3DEV/ppu/lib" "$PS3DEV/ppu/include"
+          cp libtiny3d.a "$PS3DEV/ppu/lib/" || true
+          cp *.h "$PS3DEV/ppu/include/" || true
+          echo "tiny3d installed manually."
 
       - name: Build and Install ps3soundlib
         run: |
