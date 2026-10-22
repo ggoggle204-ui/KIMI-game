@@ -105,26 +105,6 @@ jobs:
           path: ps3dev
           key: ps3dev-full-v4
 
-      # ---------------------------------------------------------
-      # FIXED: Build and install PSL1GHT to generate Makefile.base
-      # ---------------------------------------------------------
-      - name: Build and Install PSL1GHT SDK
-        run: |
-          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
-          git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
-          cd psl1ght-src
-          make install-ctrl
-          make install
-          
-          # Verify and fix Makefile.base if the install step didn't place it
-          if [ ! -f "$PS3DEV/Makefile.base" ]; then
-            cp base_rules "$PS3DEV/Makefile.base" || true
-          fi
-          # Also ensure ppu_rules and spu_rules are present
-          cp ppu_rules "$PS3DEV/" || true
-          cp spu_rules "$PS3DEV/" || true
-          echo "PSL1GHT build rules installed successfully."
-
       - name: Build and Install tiny3d (Manual Patch)
         run: |
           export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
@@ -147,9 +127,20 @@ jobs:
           cp -r include/* "$PS3DEV/portlibs/ppu/include/" || true
           echo "ps3soundlib installed manually."
 
-      - name: Compile Game
+      - name: Compile Game (Force Correct Rules & Tabs)
         run: |
           export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
+          
+          # 1. Download the CORRECT base rules file directly from PSL1GHT
+          git clone --depth=1 https://github.com/ps3dev/PSL1GHT.git psl1ght-src
+          cp psl1ght-src/base_rules $PS3DEV/Makefile.base
+          cp psl1ght-src/ppu_rules $PS3DEV/ppu_rules
+          cp psl1ght-src/spu_rules $PS3DEV/spu_rules
+          
+          # 2. Force Tabs in the Makefile to fix mobile editor spaces
+          sed -i 's/^[ ]*/\t/' Makefile.ps3
+          
+          # 3. Compile
           make -f Makefile.ps3
 
       - name: Upload PS3 Build
