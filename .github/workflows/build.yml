@@ -1,69 +1,135 @@
-name: Build PS3 Game
+name: Build KIMI-game PS3
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PS3DEV: ${{ github.workspace }}/ps3dev
+  PSL1GHT: ${{ github.workspace }}/ps3dev
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download and Extract PS3 Toolchain
+      - name: Install Host Dependencies
         run: |
-          wget -q https://github.com/bucanero/ps3toolchain/releases/download/ubuntu-latest-fad3b5fb/ps3dev-ubuntu-latest-2020-08-31.tar.gz
-          tar -xzf ps3dev-ubuntu-latest-2020-08-31.tar.gz
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake bison flex gcc libelf-dev make \
+            texinfo libncurses5-dev patch python3 python-is-python3 subversion wget \
+            zlib1g-dev libtool-bin python3-dev bzip2 libgmp3-dev pkg-config git g++ libssl-dev clang
 
-      - name: Patch missing ppu_rules and Set Environment
+      - name: Configure download retries
         run: |
-          # Find Makefile.base to figure out where the SDK actually is
-          MB_PATH=$(find ${{ github.workspace }}/ps3dev -name "Makefile.base" | head -n 1)
-          if [ -z "$MB_PATH" ]; then
-            echo "ERROR: Could not find Makefile.base anywhere!"
-            exit 1
-          fi
-          
-          PSL1GHT_DIR=$(dirname "$MB_PATH")
-          echo "PSL1GHT=$PSL1GHT_DIR" >> $GITHUB_ENV
-          echo "PS3DEV=${{ github.workspace }}/ps3dev" >> $GITHUB_ENV
-          echo "Found PSL1GHT at: $PSL1GHT_DIR"
+          printf 'tries = 5\nretry_connrefused = on\nwaitretry = 10\ntimeout = 60\n' >> ~/.wgetrc
+          printf 'retry = 5\nretry-delay = 10\nretry-all-errors\nconnect-timeout = 30\n' >> ~/.curlrc
+          mkdir -p "${{ github.workspace }}/logs"
 
-          # Find ppu_rules and copy it into the PSL1GHT folder
-          PPU_RULES=$(find ${{ github.workspace }}/ps3dev -name "ppu_rules" | head -n 1)
-          if [ -n "$PPU_RULES" ]; then
-            cp "$PPU_RULES" "$PSL1GHT_DIR/ppu_rules"
-            echo "Successfully patched ppu_rules!"
-          else
-            echo "ERROR: Could not find ppu_rules!"
-            exit 1
-          fi
+      - name: Restore full toolchain cache
+        id: cache_full
+        uses: actions/cache/restore@v4
+        with:
+          path: ps3dev
+          key: ps3dev-full-v2
 
-      - name: Setup PATH
+      - name: Restore core toolchain cache
+        id: cache_core
+        if: steps.cache_full.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ps3dev
+          key: ps3dev-core-v2
+
+      - name: Get ps3toolchain
+        if: steps.cache_full.outputs.cache-hit != 'true'
         run: |
-          echo "${{ github.workspace }}/ps3dev/bin" >> $GITHUB_PATH
-          echo "${{ github.workspace }}/ps3dev/ppu/bin" >> $GITHUB_PATH
-          echo "${{ github.workspace }}/ps3dev/spu/bin" >> $GITHUB_PATH
+          mkdir -p "$PS3DEV"
+          git clone --depth=1 https://github.com/ps3dev/ps3toolchain.git ps3toolchain-src
 
-      - name: Build and Install tiny3d (Graphics)
+      - name: Stage A - build core toolchain (GCC, binutils, PSL1GHT)
+        if: steps.cache_full.outputs.cache-hit != 'true' && steps.cache_core.outputs.cache-hit != 'true'
         run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
+          cd ps3toolchain-src
+          mkdir -p /tmp/hold
+          mv scripts/*ps3libraries*.sh /tmp/hold/
+          ./toolchain.sh > "${{ github.workspace }}/logs/stage-a.log" 2>&1 \
+            || { tail -n 150 "${{ github.workspace }}/logs/stage-a.log"; exit 1; }
+          mv /tmp/hold/*.sh scripts/
+
+      - name: Save core toolchain cache
+        if: steps.cache_full.outputs.cache-hit != 'true' && steps.cache_core.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ps3dev
+          key: ps3dev-core-v2
+
+      - name: Stage B - build ps3libraries (zlib, freetype)
+        if: steps.cache_full.outputs.cache-hit != 'true'
+        run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
+          LOG="${{ github.workspace }}/logs/stage-b.log"
+          cd ps3toolchain-src
+          mkdir -p /tmp/hold
+          for f in scripts/*.sh; do
+            case "$f" in *ps3libraries*) ;; *) mv "$f" /tmp/hold/ ;; esac
+          done
+          ls scripts/*ps3libraries*.sh || { echo "ps3libraries script not found"; exit 1; }
+
+          for attempt in 1 2; do
+            echo "=== ps3libraries attempt $attempt ===" | tee -a "$LOG"
+            if ./toolchain.sh >> "$LOG" 2>&1; then echo "ps3libraries fully built"; break; fi
+            echo "attempt $attempt stopped early; last lines:"; tail -n 15 "$LOG"
+          done
+          mv /tmp/hold/*.sh scripts/
+
+          L="$PS3DEV/portlibs/ppu/lib"
+          ls "$L" || true
+          missing=0
+          for lib in libz.a libfreetype.a; do
+            if [ -f "$L/$lib" ]; then echo "OK: $lib installed"; else echo "MISSING: $lib"; missing=1; fi
+          done
+          if [ "$missing" = 1 ]; then echo "A needed library was not built:"; tail -n 100 "$LOG"; exit 1; fi
+
+      - name: Save full toolchain cache
+        if: steps.cache_full.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ps3dev
+          key: ps3dev-full-v2
+
+      - name: Build and Install tiny3d
+        run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           git clone https://github.com/wargio/tiny3d.git
           cd tiny3d
           make
           make install
 
-      - name: Build and Install ps3soundlib (Audio)
+      - name: Build and Install ps3soundlib
         run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           git clone https://github.com/wargio/ps3soundlib.git
           cd ps3soundlib
           make
           make install
 
-      - name: Build the Game
+      - name: Compile Game
         run: |
+          export PATH="$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin"
           make -f Makefile.ps3
 
-      - name: Upload Compiled Game Artifact
+      - name: Upload PS3 Build
         uses: actions/upload-artifact@v4
         with:
-          name: PS3-Game-Build
-          path: skycircuit.self
+          name: KIMI-game-PS3
+          path: |
+            skycircuit.self
+            skycircuit.elf
