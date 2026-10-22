@@ -4,6 +4,6 @@ TARGET		:=	skycircuit
 TYPE		:=	EXECUTABLE
 SOURCE		:=	src src/ps3
 INCLUDES	:=	src
-LIBS := -ltiny3d -laudio -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++
+LIBS		:=	-ltiny3d -laudio -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++
 
 include $(PSL1GHT)/Makefile.base
