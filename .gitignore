@@ -1,0 +1,14 @@
+# build artifacts
+*.o
+*.elf
+*.self
+*.pkg
+skycircuit
+headless_test
+headless.ppm
+
+# editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

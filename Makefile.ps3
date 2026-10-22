@@ -1,0 +1,9 @@
+# PSL1GHT homebrew Makefile (ps3toolchain / PSL1GHT + ps3libraries).
+# Requires: tiny3d, libaudio, libio, libsysutil, rsx/gcm libs.
+TARGET		:=	skycircuit
+TYPE		:=	EXECUTABLE
+SOURCE		:=	src src/ps3
+INCLUDES	:=	src
+LIBS		:=	-ltiny3d -laudio -lsysutil -lio -lgcm_sys -lreality -lrsx -lm -lstdc++
+
+include $(PSL1GHT)/Makefile.base
