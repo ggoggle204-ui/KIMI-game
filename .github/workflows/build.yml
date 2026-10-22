@@ -12,12 +12,20 @@ jobs:
       - name: Compile inside PS3Dev Docker
         run: |
           docker run --rm -v ${{ github.workspace }}:/src einsteinx2/ps3dev-tiny3d bash -c "
-            # 1. Set up the correct PSL1GHT paths inside the container
+            # 1. Dynamically find the correct PSL1GHT installation path
+            MB_PATH=\$(find / -name Makefile.base 2>/dev/null | head -n 1)
+            if [ -n \"\$MB_PATH\" ]; then
+                export PSL1GHT=\$(dirname \"\$MB_PATH\")
+                echo \"Found PSL1GHT environment at: \$PSL1GHT\"
+            else
+                echo \"ERROR: Could not find Makefile.base anywhere in the container!\"
+                exit 1
+            fi
+
             export PS3DEV=/usr/local/ps3dev
-            export PSL1GHT=\$PS3DEV/psl1ght
             export PATH=\$PATH:\$PS3DEV/bin:\$PS3DEV/ppu/bin:\$PS3DEV/spu/bin
 
-            # 2. Install ps3soundlib (now with the correct PSL1GHT path)
+            # 2. Install ps3soundlib (now with the perfectly correct path)
             cd /tmp
             git clone https://github.com/wargio/ps3soundlib.git
             cd ps3soundlib
