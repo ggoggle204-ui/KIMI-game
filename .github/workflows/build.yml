@@ -138,16 +138,8 @@ jobs:
           make install
           cd ..
 
-          # 2. Overwrite Makefile.ps3 to guarantee perfect tabs and rules
-          cat << 'EOF' > Makefile.ps3
-TARGET		:=	skycircuit
-TYPE		:=	EXECUTABLE
-SOURCE		:=	src src/ps3
-INCLUDES	:=	src
-LIBS		:=	-ltiny3d -lps3soundlib -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++
-
-include $(PSL1GHT)/Makefile.base
-EOF
+          # 2. Overwrite Makefile.ps3 using printf (avoids YAML errors and guarantees Tabs)
+          printf 'TARGET\t\t:=\tskycircuit\nTYPE\t\t:=\tEXECUTABLE\nSOURCE\t\t:=\tsrc src/ps3\nINCLUDES\t:=\tsrc\nLIBS\t\t:=\t-ltiny3d -lps3soundlib -lsysutil -lio -lgcm_sys -lrsx -lm -lstdc++\n\ninclude $$(PSL1GHT)/Makefile.base\n' > Makefile.ps3
 
           # 3. Compile
           make -f Makefile.ps3
